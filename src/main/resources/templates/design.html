@@ -13,7 +13,7 @@
 <img th:src="@{/images/TacoCloud.png}"/>
 
 <!-- tag::formTag[] -->
-<form method="POST" th:object="${design}">
+<form method="post" th:object="${design}">
     <!-- end::all[] -->
 
     <span class="validationError"
@@ -80,7 +80,7 @@
         <!-- tag::all[] -->
         <br/>
 
-        <button>Submit your taco</button>
+        <button type="submit">Submit your taco</button>
     </div>
     <!-- tag::closeFormTag[] -->
 </form>
