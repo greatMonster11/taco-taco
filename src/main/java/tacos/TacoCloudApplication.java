@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 
 import tacos.Ingredient.Type;
 import tacos.data.IngredientRepository;
+import tacos.data.UserRepository;
 
 @SpringBootApplication
 public class TacoCloudApplication {
