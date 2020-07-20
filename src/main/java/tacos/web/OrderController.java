@@ -1,146 +1,89 @@
 package tacos.web;
-import javax.validation.Valid;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.Errors;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.SessionAttributes;
-import org.springframework.web.bind.support.SessionStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import tacos.Order;
-import tacos.User;
 import tacos.data.OrderRepository;
 
-// tag::OrderController_base[]
-
-@Controller
-@RequestMapping("/orders")
-@SessionAttributes("order")
+@RestController
+@RequestMapping(path = "/orders",
+        produces = "application/json")
+@CrossOrigin(origins = "*")
 public class OrderController {
 
-  private OrderRepository orderRepo;
+    private OrderRepository repo;
 
-//end::OrderController_base[]
-
-  // tag::ordersForUser_paged_withHolder[]
-  private OrderProps props;
-
-  public OrderController(OrderRepository orderRepo,
-          OrderProps props) {
-    this.orderRepo = orderRepo;
-    this.props = props;
-  }
-  // end::ordersForUser_paged_withHolder[]
-
-  @GetMapping("/current")
-  public String orderForm(@AuthenticationPrincipal User user,
-      @ModelAttribute Order order) {
-    if (order.getDeliveryName() == null) {
-      order.setDeliveryName(user.getFullname());
-    }
-    if (order.getDeliveryStreet() == null) {
-      order.setDeliveryStreet(user.getStreet());
-    }
-    if (order.getDeliveryCity() == null) {
-      order.setDeliveryCity(user.getCity());
-    }
-    if (order.getDeliveryState() == null) {
-      order.setDeliveryState(user.getState());
-    }
-    if (order.getDeliveryZip() == null) {
-      order.setDeliveryZip(user.getZip());
+    public OrderController(OrderRepository repo) {
+        this.repo = repo;
     }
 
-    return "orderForm";
-  }
-
-  @PostMapping
-  public String processOrder(@Valid Order order, Errors errors,
-      SessionStatus sessionStatus,
-      @AuthenticationPrincipal User user) {
-
-    if (errors.hasErrors()) {
-      return "orderForm";
+    @GetMapping(produces = "application/json")
+    public Iterable<Order> allOrders() {
+        return repo.findAll();
     }
 
-    order.setUser(user);
+    @PostMapping(consumes = "application/json")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Order postOrder(@RequestBody Order order) {
+        return repo.save(order);
+    }
 
-    orderRepo.save(order);
-    sessionStatus.setComplete();
+    @PutMapping(path = "/{orderId}", consumes = "application/json")
+    public Order putOrder(@RequestBody Order order) {
+        return repo.save(order);
+    }
 
-    return "redirect:/";
-  }
+    @PatchMapping(path = "/{orderId}", consumes = "application/json")
+    public Order patchOrder(@PathVariable("orderId") Long orderId,
+                            @RequestBody Order patch) {
 
-  /*
-  //tag::ordersForUser_paged_withHolder[]
+        Order order = repo.findById(orderId).get();
+        if (patch.getDeliveryName() != null) {
+            order.setDeliveryName(patch.getDeliveryName());
+        }
+        if (patch.getDeliveryStreet() != null) {
+            order.setDeliveryStreet(patch.getDeliveryStreet());
+        }
+        if (patch.getDeliveryCity() != null) {
+            order.setDeliveryCity(patch.getDeliveryCity());
+        }
+        if (patch.getDeliveryState() != null) {
+            order.setDeliveryState(patch.getDeliveryState());
+        }
+        if (patch.getDeliveryZip() != null) {
+            order.setDeliveryZip(patch.getDeliveryState());
+        }
+        if (patch.getCcNumber() != null) {
+            order.setCcNumber(patch.getCcNumber());
+        }
+        if (patch.getCcExpiration() != null) {
+            order.setCcExpiration(patch.getCcExpiration());
+        }
+        if (patch.getCcCVV() != null) {
+            order.setCcCVV(patch.getCcCVV());
+        }
+        return repo.save(order);
+    }
 
-    ...
+    @DeleteMapping("/{orderId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOrder(@PathVariable("orderId") Long orderId) {
+        try {
+            repo.deleteById(orderId);
+        } catch (EmptyResultDataAccessException e) {
+        }
+    }
 
-  //end::ordersForUser_paged_withHolder[]
-  
-   */
-
-  // tag::ordersForUser_paged_withHolder[]
-  @GetMapping
-  public String ordersForUser(
-      @AuthenticationPrincipal User user, Model model) {
-
-    Pageable pageable = PageRequest.of(0, props.getPageSize());
-    model.addAttribute("orders",
-        orderRepo.findByUserOrderByPlacedAtDesc(user, pageable));
-
-    return "orderList";
-  }
-  // end::ordersForUser_paged_withHolder[]
-
-  /*
-  // tag::ordersForUser_paged[]
-  @GetMapping
-  public String ordersForUser(
-      @AuthenticationPrincipal User user, Model model) {
-
-    Pageable pageable = PageRequest.of(0, 20);
-    model.addAttribute("orders",
-        orderRepo.findByUserOrderByPlacedAtDesc(user, pageable));
-
-    return "orderList";
-  }
-  // end::ordersForUser_paged[]
-
-   */
-
-  /*
-  // tag::ordersForUser[]
-  @GetMapping
-  public String ordersForUser(
-      @AuthenticationPrincipal User user, Model model) {
-
-    model.addAttribute("orders",
-        orderRepo.findByUserOrderByPlacedAtDesc(user));
-
-    return "orderList";
-  }
-  // end::ordersForUser[]
-
-   */
-
-  /*
-  //tag::OrderController_base[]
-
-    ...
-
-  //end::OrderController_base[]
-
-   */
-
-
-//tag::OrderController_base[]
 }
-//end::OrderController_base[]

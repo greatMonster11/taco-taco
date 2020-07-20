@@ -1,101 +1,65 @@
 package tacos.web;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.validation.Valid;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.Errors;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.hateoas.server.EntityLinks;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+//end::recents[]
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+//tag::recents[]
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.SessionAttributes;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
-import tacos.Ingredient;
-import tacos.Ingredient.Type;
-import tacos.Order;
 import tacos.Taco;
-import tacos.User;
-import tacos.data.IngredientRepository;
 import tacos.data.TacoRepository;
-import tacos.data.UserRepository;
 
-@Controller
-@RequestMapping("/design")
-@SessionAttributes("order")
+@RestController
+@RequestMapping(path = "/design",                      // <1>
+        produces = "application/json")
+@CrossOrigin(origins = "*")        // <2>
 public class DesignTacoController {
-  
-  private final IngredientRepository ingredientRepo;
-  
-  private TacoRepository tacoRepo;
+    private TacoRepository tacoRepo;
 
-  private UserRepository userRepo;
+    @Autowired
+    EntityLinks entityLinks;
 
-  @Autowired
-  public DesignTacoController(
-        IngredientRepository ingredientRepo, 
-        TacoRepository tacoRepo,
-        UserRepository userRepo) {
-    this.ingredientRepo = ingredientRepo;
-    this.tacoRepo = tacoRepo;
-    this.userRepo = userRepo;
-  }
-
-  @ModelAttribute(name = "order")
-  public Order order() {
-    return new Order();
-  }
-  
-  @ModelAttribute(name = "design")
-  public Taco design() {
-    return new Taco();
-  }
-  
-  @GetMapping
-  public String showDesignForm(Model model, Principal principal) {
-    List<Ingredient> ingredients = new ArrayList<>();
-    ingredientRepo.findAll().forEach(i -> ingredients.add(i));
-    
-    Type[] types = Ingredient.Type.values();
-    for (Type type : types) {
-      model.addAttribute(type.toString().toLowerCase(), 
-          filterByType(ingredients, type));      
-    }
-    
-    String username = principal.getName();
-    User user = userRepo.findByUsername(username);
-    model.addAttribute("user", user);
-
-    return "design";
-  }
-
-  @PostMapping
-  public String processDesign(
-      @Valid Taco taco, Errors errors, 
-      @ModelAttribute Order order) {
-    
-    if (errors.hasErrors()) {
-      return "design";
+    public DesignTacoController(TacoRepository tacoRepo) {
+        this.tacoRepo = tacoRepo;
     }
 
-    Taco saved = tacoRepo.save(taco);
-    order.addDesign(saved);
+    @GetMapping("/recent")
+    public Iterable<Taco> recentTacos() {                 //<3>
+        PageRequest page = PageRequest.of(
+                0, 12, Sort.by("createdAt").descending());
+        return tacoRepo.findAll();
+    }
+    //end::recents[]
 
-    return "redirect:/orders/current";
-  }
+    //tag::postTaco[]
+    @PostMapping(consumes = "application/json")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Taco postTaco(@RequestBody Taco taco) {
+        return tacoRepo.save(taco);
+    }
+    //end::postTaco[]
 
-  private List<Ingredient> filterByType(
-      List<Ingredient> ingredients, Type type) {
-    return ingredients
-              .stream()
-              .filter(x -> x.getType().equals(type))
-              .collect(Collectors.toList());
-  }
-  
+
+    @GetMapping("/{id}")
+    public Taco tacoById(@PathVariable("id") Long id) {
+        Optional<Taco> optTaco = tacoRepo.findById(id);
+        if (optTaco.isPresent()) {
+            return optTaco.get();
+        }
+        return null;
+    }
+
 }
+
